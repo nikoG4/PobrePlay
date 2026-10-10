@@ -21,7 +21,10 @@ jobs:
       - name: Instalar componentes Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          SDKROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDKROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          if [ -z "$SDKMANAGER" ]; then echo "No se encontro sdkmanager"; exit 1; fi
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Compilar APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
