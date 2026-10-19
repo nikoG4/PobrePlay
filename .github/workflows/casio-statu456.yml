@@ -1,0 +1,52 @@
+name: Casio STAT U456 - Build G1A
+on:
+  push:
+    branches:
+      - casio/statu456-build
+    paths:
+      - .casio/statu456-build.zip
+      - .github/workflows/casio-statu456.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: manawyrm/fxsdk:latest
+      options: --user 0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar fxSDK y extraer fuentes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          command -v fxsdk
+          command -v sh-elf-gcc
+          command -v cmake
+          python3 -m zipfile -t .casio/statu456-build.zip
+          mkdir -p casio-statu456
+          python3 -m zipfile -e .casio/statu456-build.zip casio-statu456
+      - name: Compilar tres add-ins para Graph 35+E II
+        shell: bash
+        working-directory: casio-statu456
+        run: |
+          set -euxo pipefail
+          fxsdk build-fx
+          mkdir -p out
+          find . -type f -name 'STAT-U*.g1a' -print -exec cp -v '{}' out/ ';'
+          test -s out/STAT-U4.g1a
+          test -s out/STAT-U5.g1a
+          test -s out/STAT-U6.g1a
+          file out/*.g1a || true
+          ls -l out
+      - name: Publicar G1A descargables
+        uses: actions/upload-artifact@v4
+        with:
+          name: Casio-STAT-U456-G1A
+          path: casio-statu456/out/*.g1a
+          if-no-files-found: error
+          retention-days: 30
