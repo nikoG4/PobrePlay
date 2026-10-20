@@ -1,0 +1,53 @@
+name: Casio STAT U123G - Guided Beta
+on:
+  push:
+    branches:
+      - casio/statu456-build
+    paths:
+      - .casio/statu123-guided-source.zip
+      - .github/workflows/casio-statu123-guided.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: manawyrm/fxsdk:latest
+      options: --user 0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack recovered and enhanced sources
+        shell: bash
+        run: |
+          set -euxo pipefail
+          command -v fxsdk
+          command -v sh-elf-gcc
+          python3 -m zipfile -t .casio/statu123-guided-source.zip
+          mkdir -p casio-u123g
+          python3 -m zipfile -e .casio/statu123-guided-source.zip casio-u123g
+      - name: Build Graph 35+E II guided addin
+        shell: bash
+        working-directory: casio-u123g
+        run: |
+          set -euxo pipefail
+          fxsdk build-fx
+          test -s STAT-U123-GUIADO.g1a
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('STAT-U123-GUIADO.g1a')
+          b=p.read_bytes()
+          assert len(b)>20000
+          assert b[0x20:0x28].startswith(b'@STU123'), b[0x20:0x28]
+          print('Verified G1A:',len(b),'bytes',b[0x20:0x28])
+          PY
+      - name: Upload independent beta executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: STAT-U123-GUIADO-BETA-G1A
+          path: casio-u123g/STAT-U123-GUIADO.g1a
+          if-no-files-found: error
+          retention-days: 30
